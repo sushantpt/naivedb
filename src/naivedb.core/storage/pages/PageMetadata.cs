@@ -1,4 +1,4 @@
-namespace naivedb.core.storage
+namespace naivedb.core.storage.pages
 {
     /// <summary>
     /// Represents metadata for a page.
@@ -75,7 +75,7 @@ namespace naivedb.core.storage
         /// <summary>
         /// Page body, containing the records/tuples/rows.
         /// </summary>
-        public List<Record> Body { get; set; } = new();
+        public List<Row> Body { get; set; } = new();
         
         /// <summary>
         /// Page footer containing metadata.

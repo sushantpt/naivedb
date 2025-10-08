@@ -10,6 +10,7 @@ naiveDB is a simple database implementation with the following characteristics:
 - No query planner, just raw execution
 - No concurrency mechanism
 - No async/await support
+---
 
 ## Project Structure
 
@@ -19,6 +20,7 @@ The project consists of the following components:
 - **server**: Connection server (TCP, HTTP, gRPC, etc.)
 - **tests**: All test cases
 - **tools**: Migration, benchmarking, profiling, etc.
+---
 
 ### Dependency Graph
 - core
@@ -26,4 +28,24 @@ The project consists of the following components:
 - tests    ---> core
 - server   ---> core
 - tools    ---> core
+------
 
+## Versions & notes
+> v1.0.0
+- Initial release
+   1. cli support
+   2. json based storage
+   3. linear retrieval
+   4. no indexing
+   5. no query planner
+   6. no concurrency mechanism
+- Moving forward
+  1. better file storage (paging)
+  2. improve cli
+  3. code cleanup
+
+> v1.1.0
+- improvements on v1.0.0
+   1. better file storage (paging)
+   2. richer cli
+   3. code cleanup

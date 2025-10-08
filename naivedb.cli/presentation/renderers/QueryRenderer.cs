@@ -1,4 +1,4 @@
-using naivedb.core.storage;
+using naivedb.core.storage.pages;
 using Spectre.Console;
 
 namespace naivedb.cli.presentation.renderers
@@ -20,22 +20,30 @@ namespace naivedb.cli.presentation.renderers
             AnsiConsole.Write(table);
         }
 
-        public static void RenderRecords(string tableName, IEnumerable<Record> records)
+        public static void RenderRecords(string tableName, IEnumerable<Row> records)
         {
-            var recList = records.ToList();
-            if (recList.Count == 0)
+            var recList = records.Where(x => x != null).ToList();
+            if (recList.Count == 0 || recList.All(r => r.Values.Count == 0))
             {
                 AnsiConsole.MarkupLine($"[yellow]No records found in table '{tableName}'.[/]");
                 return;
             }
-
-            var first = recList.First();
+            
+            var allKeys = recList
+                .SelectMany(r => r.Keys)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
             var table = new Table().Border(TableBorder.Rounded);
-            foreach (var key in first.Keys)
+            foreach (var key in allKeys)
                 table.AddColumn($"[bold cyan]{key}[/]");
-
             foreach (var r in recList)
-                table.AddRow(r.Values.Select(v => v?.ToString() ?? "").ToArray());
+            {
+                var rowValues = allKeys.Select(k =>
+                    r.TryGetValue(k, out var val) ? val?.ToString() ?? "" : ""
+                ).ToArray();
+
+                table.AddRow(rowValues);
+            }
 
             AnsiConsole.Write(table);
         }

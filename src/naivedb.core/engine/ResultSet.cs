@@ -1,4 +1,4 @@
-using naivedb.core.storage;
+using naivedb.core.storage.pages;
 
 namespace naivedb.core.engine
 {
@@ -10,19 +10,19 @@ namespace naivedb.core.engine
         /// <summary>
         /// Gets the collection of records contained within the result set.
         /// </summary>
-        public List<Record> Records { get; }
+        public List<Row> Records { get; }
         
         /// <summary>
         /// Gets the first record if one exists, otherwise null.
         /// </summary>
-        public Record? Single => Records.FirstOrDefault();
+        public Row? Single => Records.FirstOrDefault();
 
         /// <summary>
         /// Gets the total number of records.
         /// </summary>
         public int Count => Records.Count;
 
-        public ResultSet(IEnumerable<Record> records)
+        public ResultSet(IEnumerable<Row> records)
         {
             Records = records.ToList();
         }

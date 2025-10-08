@@ -4,6 +4,7 @@ using naivedb.cli.presentation.renderers;
 using naivedb.core.configs;
 using naivedb.core.engine;
 using naivedb.core.storage;
+using naivedb.core.storage.pages;
 using Spectre.Console;
 
 namespace naivedb.cli.presentation.commands
@@ -206,22 +207,41 @@ namespace naivedb.cli.presentation.commands
 
             var tableName = args[nameIndex + 1];
             var showAll = args.Contains("-all", StringComparer.OrdinalIgnoreCase);
-            
             var records = _db.ReadAll(tableName).Records
                 .Select(r => FilterSystemFields(r, showAll))
                 .ToList();
+            
+            if (args.Contains("where", StringComparer.OrdinalIgnoreCase))
+            {
+                var whereIndex = Array.IndexOf(args, "where");
+                var condition = args[whereIndex + 1];
 
+                // parse predicate/where clause
+                var parts = condition.Split("==", StringSplitOptions.TrimEntries);
+                if (parts.Length != 2)
+                {
+                    AnsiConsole.MarkupLine("[red]Invalid where clause. Use: where key==value[/]");
+                    return Task.CompletedTask;
+                }
+
+                var key = parts[0].Trim();
+                var value = parts[1].Trim();
+                var match = records.FirstOrDefault(r => r.ContainsKey(key) && r[key]?.ToString() == value);
+                QueryRenderer.RenderRecords(tableName, new List<Row> { match! });
+                return Task.CompletedTask;           
+            }
+            
             QueryRenderer.RenderRecords(tableName, records);
             return Task.CompletedTask;
         }
         
-        private Record FilterSystemFields(Record record, bool showAll)
+        private Row FilterSystemFields(Row row, bool showAll)
         {
             if (showAll)
-                return record;
+                return row;
 
-            var filtered = new Record();
-            foreach (var kv in record)
+            var filtered = new Row();
+            foreach (var kv in row)
             {
                 if (!kv.Key.StartsWith("naivedb_sys_", StringComparison.OrdinalIgnoreCase))
                     filtered[kv.Key] = kv.Value;
@@ -248,7 +268,7 @@ namespace naivedb.cli.presentation.commands
             {
                 var tableMetadata = _db.GetTableMetadata(tableName);
                 var lastId = tableMetadata.RecordCount;
-                var record = new Record();
+                var record = new Row();
                 var sysMeta = new Dictionary<string, object?>
                 {
                     ["naivedb_sys_incremental_value"] = lastId + 1,
@@ -260,7 +280,7 @@ namespace naivedb.cli.presentation.commands
                 foreach (var kv in sysMeta) 
                     record[kv.Key] = kv.Value;
                 
-                var recordToAdd = JsonSerializer.Deserialize<Record>(dataJson);
+                var recordToAdd = JsonSerializer.Deserialize<Row>(dataJson);
                 if (recordToAdd == null)
                 {
                     AnsiConsole.MarkupLine("[red]Invalid JSON.[/]");
@@ -281,6 +301,7 @@ namespace naivedb.cli.presentation.commands
             return Task.CompletedTask;
         }
 
+
         private Task UpdateRecord(string[] args)
         {
             var nameIndex = Array.IndexOf(args, "-n");
@@ -299,7 +320,7 @@ namespace naivedb.cli.presentation.commands
             var condition = args[whereIndex + 1];
 
             // parse predicate/where clause
-            var parts = condition.Split("==", StringSplitOptions.RemoveEmptyEntries);
+            var parts = condition.Split("==", StringSplitOptions.TrimEntries);
             if (parts.Length != 2)
             {
                 AnsiConsole.MarkupLine("[red]Invalid where clause. Use: where key==value[/]");
@@ -311,7 +332,7 @@ namespace naivedb.cli.presentation.commands
 
             try
             {
-                var recordUpdate = JsonSerializer.Deserialize<Record>(dataJson);
+                var recordUpdate = JsonSerializer.Deserialize<Row>(dataJson);
                 if (recordUpdate == null)
                 {
                     AnsiConsole.MarkupLine("[red]Invalid JSON data.[/]");

@@ -1,5 +1,6 @@
 using naivedb.core.configs;
 using naivedb.core.storage;
+using naivedb.core.storage.pages;
 
 namespace naivedb.core.engine
 {
@@ -7,7 +8,7 @@ namespace naivedb.core.engine
     /// Provides functionality for managing and manipulating a collection of records in a database.
     /// Each table is stored as a page-based JSON file (header, body, footer).
     /// </summary>
-    public class Database : IDatabase
+    public class Database
     {
         private readonly string _dataDirectory;
         private readonly Dictionary<string, FileStorage> _tables = new();
@@ -21,19 +22,19 @@ namespace naivedb.core.engine
                 Directory.CreateDirectory(_dataDirectory);
         }
 
-        public void Create(string tableName, Record record)
+        public void Create(string tableName, Row row)
         {
             var storage = GetTableStorage(tableName);
-            storage.Append(record);
+            storage.Append(row);
         }
 
-        public void Update(string tableName, Record record)
+        public void Update(string tableName, Row row)
         {
             var storage = GetTableStorage(tableName);
             var records = storage.ReadAll().ToList();
-            var index = records.FindIndex(r => r.Key == record.Key);
+            var index = records.FindIndex(r => r.Key == row.Key);
             if (index >= 0)
-                records[index] = record;
+                records[index] = row;
             storage.SaveAll(records, "update");
         }
 

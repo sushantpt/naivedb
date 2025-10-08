@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using naivedb.core.storage.pages;
 
 namespace naivedb.core.storage
 {
@@ -27,14 +28,14 @@ namespace naivedb.core.storage
                 InitializeEmptyPage();
         }
 
-        public void Append(Record record)
+        public void Append(Row row)
         {
             var page = LoadPage();
             
-            record["naivedb_sys_incremental_value"] = page.Body.Count;
-            record["naivedb_sys_timestamp_utc"] = DateTime.UtcNow.ToString("o");
+            row["naivedb_sys_incremental_value"] = page.Body.Count;
+            row["naivedb_sys_timestamp_utc"] = DateTime.UtcNow.ToString("o");
 
-            page.Body.Add(record);
+            page.Body.Add(row);
 
             page.Header.OperationCount++;
             page.Header.RecordCount = page.Body.Count;
@@ -44,13 +45,13 @@ namespace naivedb.core.storage
             SavePage(page);
         }
 
-        public IEnumerable<Record> ReadAll()
+        public IEnumerable<Row> ReadAll()
         {
             var page = LoadPage();
             return page.Body;
         }
 
-        public void SaveAll(List<Record> records, string lastOperation = "update")
+        public void SaveAll(List<Row> records, string lastOperation = "update")
         {
             var page = LoadPage();
 
@@ -71,48 +72,70 @@ namespace naivedb.core.storage
 
         private void InitializeEmptyPage()
         {
-            var page = new TablePage
+            try
             {
-                Header = new PageMetadata
+                var page = new TablePage
                 {
-                    TableName = _tableName,
-                    CreatedAt = DateTime.UtcNow,
-                    RecordCount = 0,
-                    OperationCount = 1,
-                    LastOperation = "create"
-                },
-                Body = new List<Record>(),
-                Footer = new PageFooter
-                {
-                    WrittenAt = DateTime.UtcNow,
-                    PageSizeBytes = 0,
-                    Checksum = string.Empty
-                }
-            };
+                    Header = new PageMetadata
+                    {
+                        TableName = _tableName,
+                        CreatedAt = DateTime.UtcNow,
+                        RecordCount = 0,
+                        OperationCount = 1,
+                        LastOperation = "create"
+                    },
+                    Body = new List<Row>(),
+                    Footer = new PageFooter
+                    {
+                        WrittenAt = DateTime.UtcNow,
+                        PageSizeBytes = 0,
+                        Checksum = string.Empty
+                    }
+                };
 
-            var json = JsonSerializer.Serialize(page, JsonSerializerHelper.Options);
-            File.WriteAllText(_tablePath, json);
+                var json = JsonSerializer.Serialize(page, JsonSerializerHelper.Options);
+                File.WriteAllText(_tablePath, json);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine(e.Message);
+            }
         }
 
         private TablePage LoadPage()
         {
-            var json = File.ReadAllText(_tablePath);
-            if (string.IsNullOrWhiteSpace(json))
-                return new TablePage { Header = new PageMetadata { TableName = _tableName } };
+            try
+            {
+                var json = File.ReadAllText(_tablePath);
+                if (string.IsNullOrWhiteSpace(json))
+                    return new TablePage { Header = new PageMetadata { TableName = _tableName } };
 
-            return JsonSerializer.Deserialize<TablePage>(json, JsonSerializerHelper.Options)
-                ?? new TablePage { Header = new PageMetadata { TableName = _tableName } };
+                return JsonSerializer.Deserialize<TablePage>(json, JsonSerializerHelper.Options)
+                       ?? new TablePage { Header = new PageMetadata { TableName = _tableName } };
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine(e.Message);
+                return new TablePage { Header = new PageMetadata { TableName = _tableName } };
+            }
         }
 
         private void SavePage(TablePage page)
         {
-            var bodyJson = JsonSerializer.Serialize(page.Body, JsonSerializerHelper.Options);
-            page.Footer.Checksum = ComputeChecksum(bodyJson);
-            page.Footer.PageSizeBytes = Encoding.UTF8.GetByteCount(bodyJson);
-            page.Footer.WrittenAt = DateTime.UtcNow;
+            try
+            {
+                var bodyJson = JsonSerializer.Serialize(page.Body, JsonSerializerHelper.Options);
+                page.Footer.Checksum = ComputeChecksum(bodyJson);
+                page.Footer.PageSizeBytes = Encoding.UTF8.GetByteCount(bodyJson);
+                page.Footer.WrittenAt = DateTime.UtcNow;
 
-            var json = JsonSerializer.Serialize(page, JsonSerializerHelper.Options);
-            File.WriteAllText(_tablePath, json);
+                var json = JsonSerializer.Serialize(page, JsonSerializerHelper.Options);
+                File.WriteAllText(_tablePath, json);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine(e.Message);
+            }
         }
 
         private static string ComputeChecksum(string data)
