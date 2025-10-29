@@ -1,5 +1,8 @@
-namespace naivedb.core.engine
+namespace naivedb.core.metadata
 {
+    /*
+     * query execution metadata
+     */ 
     public class QueryContext
     {
         public string Query { get; }

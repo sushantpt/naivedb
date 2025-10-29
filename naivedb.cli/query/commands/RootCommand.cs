@@ -1,7 +1,7 @@
 using naivedb.cli.presentation.renderers;
 using naivedb.core.configs;
 
-namespace naivedb.cli.presentation.commands
+namespace naivedb.cli.query.commands
 {
     public class RootCommand : ICommand
     {
@@ -10,11 +10,11 @@ namespace naivedb.cli.presentation.commands
         {
             _options = options;
         }
-        public Task ExecuteAsync(string[] args)
+        public async Task ExecuteAsync(string[] args)
         {
             var renderer = new InitialRenderer(_options);
-            renderer.Render();
-            return Task.CompletedTask;
+            await renderer.RenderAsync();
+            await Task.CompletedTask;
         }
     }
 }

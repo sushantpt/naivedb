@@ -1,5 +1,5 @@
-using naivedb.cli.presentation.constants;
 using naivedb.core.configs;
+using naivedb.core.constants;
 using Spectre.Console;
 
 namespace naivedb.cli.presentation.renderers
@@ -11,19 +11,24 @@ namespace naivedb.cli.presentation.renderers
         {
             _options = options;
         }
-        public void Render()
+        public async Task RenderAsync()
         {
             AnsiConsole.Write(new FigletText(AppConstants.AppName)
                 .LeftJustified()
                 .Color(Color.Green));
             
             var dbPath = Path.Combine(Directory.GetCurrentDirectory(), _options.DataPath);
-            var currentDbFile = Path.Combine(dbPath, "current_db.txt");
-            if (!Directory.Exists(dbPath))
-                Directory.CreateDirectory(dbPath);
-            
-            string? currentlyConnected = File.Exists(currentDbFile) ? File.ReadAllText(currentDbFile).Trim() : null;
-            currentlyConnected = string.IsNullOrWhiteSpace(currentlyConnected) ? null : currentlyConnected; // check whitespace
+            var currentDbFile = Path.Combine(dbPath, _options.DbInfoFile);
+            Directory.CreateDirectory(dbPath);
+
+            var dbInfo = new DbInfo();
+            string? currentlyConnected = string.Empty;
+
+            if (File.Exists(currentDbFile))
+            {
+                dbInfo = await dbInfo.LoadAsync(currentDbFile);
+                currentlyConnected = dbInfo?.CurrentDatabase;
+            }
             
             var usageTable = new Table()
                 .Border(TableBorder.Rounded)
@@ -39,10 +44,11 @@ namespace naivedb.cli.presentation.renderers
                 .AddRow($"[bold green]{AppConstants.Description}[/]")
                 .AddRow("------------------")
                 .AddRow($"[yellow]Version:[/] {AppConstants.Version}")
-                .AddRow($"[yellow]Author:[/] {AppConstants.Author}")
                 .AddRow("------------------")
                 .AddRow(usageTable)
-                .AddRow(currentlyConnected is not null ? $"[green]Currently connected to:[/] {currentlyConnected}" : $"[red]Not connected to any database.[/]");
+                .AddRow(string.IsNullOrWhiteSpace(currentlyConnected) || string.IsNullOrEmpty(currentlyConnected)
+                    ? $"[red]Not connected to any database.[/]" 
+                    : $"[green]Currently connected to:[/] {currentlyConnected}");
             
             var mainPanel = new Panel(contentGrid)
             {

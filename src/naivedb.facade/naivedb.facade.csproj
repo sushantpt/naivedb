@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\naivedb.core\naivedb.core.csproj" />
+  </ItemGroup>
+
 </Project>

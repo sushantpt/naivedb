@@ -1,7 +1,7 @@
-using naivedb.cli.presentation.constants;
+using naivedb.core.constants;
 using Spectre.Console;
 
-namespace naivedb.cli.presentation.commands
+namespace naivedb.cli.query.commands
 {
     public class VersionCommand : ICommand
     {

@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ReadLine" Version="2.0.1" />
     <PackageReference Include="Spectre.Console" Version="0.51.1" />
   </ItemGroup>
 
@@ -16,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\src\naivedb.core\naivedb.core.csproj" />
+    <ProjectReference Include="..\src\naivedb.facade\naivedb.facade.csproj" />
   </ItemGroup>
 
 </Project>

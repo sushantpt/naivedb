@@ -1,6 +1,6 @@
 using Spectre.Console;
 
-namespace naivedb.cli.presentation.commands
+namespace naivedb.cli.query.commands
 {
     public class UnknownCommand(string[] args) : ICommand
     {

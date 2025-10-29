@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace naivedb.core.storage
+namespace naivedb.core.utils
 {
     /// <summary>
     /// Provides a static instance of JsonSerializerOptions configured with default settings.
