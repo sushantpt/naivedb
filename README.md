@@ -20,6 +20,10 @@ The project consists of the following components:
 - **server**: Connection server (TCP, HTTP, gRPC, etc.)
 - **tests**: All test cases
 - **tools**: Migration, benchmarking, profiling, etc.
+
+### rules
+- no direct call to core module; use facade 
+- no try-catch in core module except logger (handle it in facade)
 ---
 
 ### Dependency Graph
@@ -49,3 +53,21 @@ The project consists of the following components:
    1. better file storage (paging)
    2. richer cli
    3. code cleanup
+
+> v1.2.0
+- improvements on v1.1.0
+  1. robust error handling
+  2. code cleanup 
+  3. proper logging (even if it fails; async -> fire and forget)
+
+v1.3.0
+- improvements on v1.2.0
+   1. test coverage
+   2. code cleanup
+
+--- todo
+> journaling, wal
+> caching
+> concurrency
+> performance (parallelism, caching)
+> native lib and helper extensions support for c# 

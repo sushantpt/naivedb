@@ -1,4 +1,4 @@
-namespace naivedb.cli.presentation.commands
+namespace naivedb.cli.query.commands
 {
     public interface ICommand
     {

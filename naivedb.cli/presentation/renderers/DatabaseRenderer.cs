@@ -4,9 +4,9 @@ namespace naivedb.cli.presentation.renderers
 {
     public class DatabaseRenderer
     {
-        public static void RenderList(List<string> dbs)
+        public static void RenderList(List<string?> dbs)
         {
-            if (dbs.Count == 0)
+            if (dbs.Any(x => x == null) || dbs.Count == 0)
             {
                 AnsiConsole.MarkupLine("[yellow]No databases found.[/]");
                 return;
@@ -35,7 +35,7 @@ namespace naivedb.cli.presentation.renderers
             table.AddRow("connect", "Connect to a database", "connect <dbname>");
             table.AddRow("drop", "Drop a database", "drop <dbname>");
             table.AddRow("list", "List all databases", "list");
-            table.AddRow("query", "Execute a query", "query \"SELECT * FROM table\"");
+            table.AddRow("query", "Execute a query", "query <option> -n <table> where key==value");
             table.AddRow("import", "Import data from file", "import <file>");
             table.AddRow("export", "Export data to file", "export <dbname>");
 
