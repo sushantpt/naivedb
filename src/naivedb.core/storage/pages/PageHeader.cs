@@ -15,24 +15,4 @@ namespace naivedb.core.storage.pages
         public string Version { get; set; } = "1.0.0";
         public string Serializer { get; set; } = "msgpack";
     }
-    
-    /// <summary>
-    /// Represents metadata for a page footer.
-    /// </summary>
-    public class PageFooter
-    {
-        public string Checksum { get; set; } = string.Empty;
-        public long PageSizeBytes { get; set; }
-        public DateTime WrittenAt { get; set; } = DateTime.UtcNow;
-    }
-
-    /// <summary>
-    /// Represents an actual table page.
-    /// </summary>
-    public class TablePage
-    {
-        public PageHeader Header { get; set; } = new();
-        public List<Row> Body { get; set; } = new();
-        public PageFooter Footer { get; set; } = new();
-    }
 }

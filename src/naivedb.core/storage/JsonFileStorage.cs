@@ -78,6 +78,11 @@ namespace naivedb.core.storage
             return page.Header;
         }
 
+        public async Task<Row?> GetAsync(string key)
+        {
+            throw new NotImplementedException();
+        }
+
         private void InitializeEmptyPage()
         {
             var page = new TablePage
