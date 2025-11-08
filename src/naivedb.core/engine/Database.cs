@@ -8,7 +8,7 @@ namespace naivedb.core.engine
     public class Database
     {
         private readonly string _databaseDirectory;
-        private readonly Dictionary<string, PagedFileStorage> _tables = new();
+        private readonly Dictionary<string, PagedFileStorageUsingBPT> _tables = [];
         private readonly DbOptions _options;
         private readonly IDataSerializer _serializer = new MessagePackDataSerializer();
 
@@ -68,11 +68,11 @@ namespace naivedb.core.engine
             return await storage.GetMetadataAsync();
         }
 
-        private PagedFileStorage GetTableStorage(string table)
+        private PagedFileStorageUsingBPT GetTableStorage(string table)
         {
             if (!_tables.ContainsKey(table))
                 //_tables[table] = new JsonFileStorage(_dataDirectory, table);
-                _tables[table] = new PagedFileStorage(_databaseDirectory, table, _options);
+                _tables[table] = new PagedFileStorageUsingBPT(_databaseDirectory, table, _options);
             return _tables[table];
         }
         

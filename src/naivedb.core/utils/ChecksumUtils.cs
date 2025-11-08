@@ -8,6 +8,18 @@ namespace naivedb.core.utils
     public static class ChecksumUtils
     {
         /// <summary>
+        /// Computes the SHA256-based checksum for the given input data and returns the first 16 characters of the resulting hash as a string.
+        /// </summary>
+        /// <param name="data">The input data for which the checksum will be computed.</param>
+        /// <returns>A 16-character string representing the computed checksum.</returns>
+        public static string ComputeChecksum(byte[] data)
+        {
+            using var sha = SHA256.Create();
+            var hash = sha.ComputeHash(data);
+            return BitConverter.ToString(hash).Replace("-", "").Substring(0, 16);
+        }
+        
+        /// <summary>
         /// Computes the CRC32C checksum of the specified data.
         /// </summary>
         /// <param name="data">The data to compute the checksum for.</param>

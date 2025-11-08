@@ -30,12 +30,18 @@ namespace naivedb.core.storage
                 await WriteRowAsync(row, "bulk-insert");
         }
 
+        public Task<Row?> GetAsync(string key)
+        {
+            throw new NotImplementedException();
+        }
+
         private async Task WriteRowAsync(Row row, string operation)
         {
             var currentPage = GetCurrentPage(); // latest page
 
             row["naivedb_sys_incremental_value"] = currentPage.Body.Count + 1;
             row["naivedb_sys_timestamp_utc"] = DateTime.UtcNow.ToString("o");
+            row["uid"] = Guid.NewGuid().ToString("N");
 
             row.NormalizeToValidTypes();
             var serializedMsgPackRow = _serializer.Serialize(row);

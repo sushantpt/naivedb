@@ -1,8 +1,8 @@
-# naiveDB v1.0.0
+# naiveDB
 
 ## Introduction
 
-naiveDB is a simple database implementation with the following characteristics:
+naiveDB is a simple database implementation with the following characteristics (initially. current implementation is not naive at all with support for indexing and other features):
 
 - Flat storage: Data is written in JSON format
 - Linear retrieval: Fetching requires scanning through the whole data set or until data is found
@@ -34,6 +34,8 @@ The project consists of the following components:
 - tools    ---> core
 ------
 
+---
+
 ## Versions & notes
 > v1.0.0
 - Initial release
@@ -54,20 +56,39 @@ The project consists of the following components:
    2. richer cli
    3. code cleanup
 
-> v1.2.0
+> v1.2.0 (skipped to v2.0.0)
 - improvements on v1.1.0
   1. robust error handling
   2. code cleanup 
   3. proper logging (even if it fails; async -> fire and forget)
 
-v1.3.0
+> v1.3.0 (skipped to v2.0.0)
 - improvements on v1.2.0
    1. test coverage
    2. code cleanup
 
---- todo
-> journaling, wal
-> caching
-> concurrency
-> performance (parallelism, caching)
-> native lib and helper extensions support for c# 
+> v2.0.0 🛫
+- sorta major update: indexing support and cover up backlog of v1.2.0 and v1.3.0
+1. indexing support
+2. better logging
+3. better error handling
+4. code cleanup
+
+> v2.1.0
+- minor update: better error handling and native lib support for .net
+1. better error handling
+2. native lib support for .net
+3. code cleanup
+4. benchmarking
+detail: v2.0.0 is very io heavy for inserts and updates. this can be improved by having a background service that does writes, implement tombstone and use background service to flush, etc.
+---
+
+## todo
+* native lib and helper extensions support for c# 
+* journaling, wal
+* caching 
+* concurrency 
+* performance (parallelism, caching)
+* tui support (gui -> Terminal.Gui)
+
+
