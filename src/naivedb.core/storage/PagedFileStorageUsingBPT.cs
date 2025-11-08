@@ -6,6 +6,9 @@ using naivedb.core.utils;
 
 namespace naivedb.core.storage
 {
+    /// <summary>
+    /// using bpt will internally save data as previously i.e. paged and in row structure, but will maintain a bpt for each db operations
+    /// </summary>
     public class PagedFileStorageUsingBPT : IStorage
     {
         private readonly string _tableDirectory;
@@ -27,7 +30,7 @@ namespace naivedb.core.storage
         public async Task AppendAsync(Row row)
         {
             ArgumentNullException.ThrowIfNull(row, nameof(row));
-            var currentPage = GetCurrentPage();
+            var currentPage = GetCurrentPage(); // actual data to be saved in incremental row structure
             
             row["naivedb_sys_incremental_value"] = currentPage.Body.Count + 1;
             row["naivedb_sys_timestamp_utc"] = DateTime.UtcNow.ToString("o");

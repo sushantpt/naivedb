@@ -36,7 +36,7 @@ namespace naivedb.core.indexing.bpt
             await _bPlusTree.SaveAsync();
         }
 
-        public async Task<object>? GetAsync(object key)
+        public async Task<object?> GetAsync(object key)
         {
             if (key is not TKey typedKey)
                 throw new ArgumentException($"Invalid key type. Expected {typeof(TKey)}");

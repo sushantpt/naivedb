@@ -28,7 +28,7 @@ namespace naivedb.facade.services
             if (TableExists(tableName))
                 throw new InvalidOperationException($"Table '{tableName}' already exists.");
 
-            _ = new PagedFileStorage(_dbPath, tableName, _options);
+            _ = new PagedFileStorageUsingBPT(_dbPath, tableName, _options);
         }
 
         public bool DropTable(string tableName)

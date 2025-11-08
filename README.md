@@ -80,6 +80,7 @@ The project consists of the following components:
 2. native lib support for .net
 3. code cleanup
 4. benchmarking
+detail: v2.0.0 is very io heavy for inserts and updates. this can be improved by having a background service that does writes, implement tombstone and use background service to flush, etc.
 ---
 
 ## todo
@@ -88,6 +89,6 @@ The project consists of the following components:
 * caching 
 * concurrency 
 * performance (parallelism, caching)
-
+* tui support (gui -> Terminal.Gui)
 
 

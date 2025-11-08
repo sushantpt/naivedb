@@ -78,7 +78,7 @@ namespace naivedb.core.storage
             return page.Header;
         }
 
-        public async Task<Row?> GetAsync(string key)
+        public Task<Row?> GetAsync(string key)
         {
             throw new NotImplementedException();
         }

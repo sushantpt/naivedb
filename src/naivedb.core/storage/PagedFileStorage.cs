@@ -30,7 +30,7 @@ namespace naivedb.core.storage
                 await WriteRowAsync(row, "bulk-insert");
         }
 
-        public async Task<Row?> GetAsync(string key)
+        public Task<Row?> GetAsync(string key)
         {
             throw new NotImplementedException();
         }
