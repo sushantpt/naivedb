@@ -2,14 +2,8 @@
 
 ## Introduction
 
-naiveDB is a simple database implementation with the following characteristics (initially. current implementation is not naive at all with support for indexing and other features):
+naiveDB is a simple database implementation (current implementation is not naive; supports indexing, cold start, in-mem cache etc)
 
-- Flat storage: Data is written in JSON format
-- Linear retrieval: Fetching requires scanning through the whole data set or until data is found
-- No indexing
-- No query planner, just raw execution
-- No concurrency mechanism
-- No async/await support
 ---
 ## Commands and queries
 
@@ -105,7 +99,15 @@ detail: v2.0.0 is very io heavy for inserts and updates. this can be improved by
 ---
 ---
 
-notes
+### notes
+ initially:
+   - Flat storage: Data is written in JSON format
+   - Linear retrieval: Fetching requires scanning through the whole data set or until data is found
+   - No indexing
+   - No query planner, just raw execution
+   - No concurrency mechanism
+   - No async/await support
+---
 
 there is basically 3 layers here:
 * physical storage -> actual physical storage which is paged.
