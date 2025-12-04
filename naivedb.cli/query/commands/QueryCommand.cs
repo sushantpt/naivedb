@@ -3,6 +3,7 @@ using naivedb.cli.presentation.renderers;
 using naivedb.core.configs;
 using naivedb.core.constants;
 using naivedb.core.engine;
+using naivedb.core.storage;
 using naivedb.core.storage.pages;
 using naivedb.core.utils;
 using naivedb.facade.services;
@@ -64,17 +65,60 @@ namespace naivedb.cli.query.commands
                     break;
                 
                 case "delete":
-                    await DeleteRecord(args);
+                    if (args.Contains("by", StringComparer.OrdinalIgnoreCase) && args.Contains("key", StringComparer.OrdinalIgnoreCase))
+                        await DeleteRecordByKey(args);
+                    else if (args.Contains("range", StringComparer.OrdinalIgnoreCase))
+                        await DeleteRecordRange(args);
+                    else
+                        await DeleteRecord(args);
                     break;
                 
                 case "drop":
                     await DropTable(args);
                     break;
 
+                case "range":
+                    await RangeQuery(args);
+                    break;
+
                 default:
                     QueryRenderer.RenderHelp();
                     break;
             }
+        }
+
+        private async Task RangeQuery(string[] args)
+        {
+            var nameIndex = Array.IndexOf(args, "-n");
+            var fromIndex = Array.IndexOf(args, "-from");
+            var toIndex = Array.IndexOf(args, "-to");
+            if (nameIndex == -1 || fromIndex == -1 || toIndex == -1 ||
+                nameIndex + 1 >= args.Length || fromIndex + 1 >= args.Length || toIndex + 1 >= args.Length)
+            {
+                AnsiConsole.MarkupLine("[red]Usage:[/] query range -n <table> -from <start> -to <end>[/]");
+                return;
+            }
+            var tableName = args[nameIndex + 1];
+            var startKey = args[fromIndex + 1];
+            var endKey = args[toIndex + 1];
+            
+            if(!long.TryParse(startKey, out var startKeyLong) || !long.TryParse(endKey, out var endKeyLong))
+            {
+                AnsiConsole.MarkupLine("[red]Invalid key. Use: long or int[/]");
+                return;
+            }
+
+            var storage = new PagedFileStorageUsingBPT(_root, tableName, _options);
+            var records = new List<Row>();
+            await foreach (var record in storage.FindRangeAsync(startKeyLong, endKeyLong))
+                records.Add(record);
+
+            if (records.Count == 0)
+            {
+                AnsiConsole.MarkupLine($"[yellow]No records found in range {startKey} to {endKey}.[/]");
+                return;
+            }
+            QueryRenderer.RenderRecords(tableName, records);
         }
 
         private async Task DatabaseInfo(string[] args)
@@ -218,19 +262,7 @@ namespace naivedb.cli.query.commands
                     return;
                 }
 
-                var recordKey = match.TryGetValue("naivedb_sys_unique_value", out object? recordValue) 
-                    ? recordValue?.ToString()
-                    : match.TryGetValue("naivedb_sys_incremental_value", out object? recordValue1)
-                        ? recordValue1?.ToString()
-                        : null;
-
-                if (string.IsNullOrEmpty(recordKey))
-                {
-                    AnsiConsole.MarkupLine("[red]Could not find record key for deletion.[/]");
-                    return;
-                }
-
-                await _db.DeleteRecordAsync(tableName, recordKey);
+                await _db.DeleteRecordAsync(tableName, match.Key);
                 AnsiConsole.MarkupLine($"[green]Record deleted from '{tableName}'.[/]");
             }
             catch (Exception ex)
@@ -238,6 +270,88 @@ namespace naivedb.cli.query.commands
                 AnsiConsole.MarkupLine($"[red]Failed to delete record: {ex.Message}[/]");
             }
         }
+        
+        private async Task DeleteRecordByKey(string[] args)
+        {
+            var nameIndex = Array.IndexOf(args, "-n");
+            var keyIndex = Array.IndexOf(args, "-key");
+
+            if (nameIndex == -1 || keyIndex == -1 ||
+                nameIndex + 1 >= args.Length || keyIndex + 1 >= args.Length)
+            {
+                AnsiConsole.MarkupLine("[red]Usage:[/] query delete by key -n <table> -key <key_value>");
+                return;
+            }
+
+            var tableName = args[nameIndex + 1];
+            var keyValue = args[keyIndex + 1];
+            if (!long.TryParse(keyValue, out var keyLong))
+            {
+                AnsiConsole.MarkupLine("[red]Invalid key. Use: long or int[/]");
+                return;
+            }
+
+            try
+            {
+                await _db.DeleteRecordAsync(tableName, keyLong);
+                AnsiConsole.MarkupLine($"[green]Record with key '{keyValue}' deleted from '{tableName}'.[/]");
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Failed to delete record: {ex.Message}[/]");
+            }
+        }
+
+        private async Task DeleteRecordRange(string[] args)
+        {
+            var nameIndex = Array.IndexOf(args, "-n");
+            var startIndex = Array.IndexOf(args, "-start");
+            var endIndex = Array.IndexOf(args, "-end");
+
+            if (nameIndex == -1 || startIndex == -1 || endIndex == -1 ||
+                nameIndex + 1 >= args.Length || startIndex + 1 >= args.Length || endIndex + 1 >= args.Length)
+            {
+                AnsiConsole.MarkupLine("[red]Usage:[/] query delete range -n <table> -start <start_key> -end <end_key>");
+                return;
+            }
+
+            var tableName = args[nameIndex + 1];
+            var startKey = args[startIndex + 1];
+            var endKey = args[endIndex + 1];
+
+            if (!long.TryParse(startKey, out var startKeyLong) || !long.TryParse(endKey, out var endKeyLong))
+            {
+                AnsiConsole.MarkupLine("[red]Invalid key. Use: long or int[/]");
+                return;
+            }
+
+            try
+            {
+                var storage = new PagedFileStorageUsingBPT(_root, tableName, _options);
+                var keysToDelete = new List<long>();
+
+                await foreach (var record in storage.FindRangeAsync(startKeyLong, endKeyLong))
+                {
+                    keysToDelete.Add(record.Key);
+                }
+
+                if (keysToDelete.Count == 0)
+                {
+                    AnsiConsole.MarkupLine($"[yellow]No records found between {startKey} and {endKey} in '{tableName}'.[/]");
+                    return;
+                }
+
+                foreach (var key in keysToDelete)
+                    await _db.DeleteRecordAsync(tableName, key);
+
+                AnsiConsole.MarkupLine($"[green]{keysToDelete.Count} records deleted from '{tableName}' in range {startKey}–{endKey}.[/]");
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Failed to delete range: {ex.Message}[/]");
+            }
+        }
+
 
         private Task CreateTable(string[] args)
         {
@@ -290,6 +404,35 @@ namespace naivedb.cli.query.commands
             
             try
             {
+                /*
+                 * handle by key: commandsTable.AddRow("query get by key", "Retrieve record by key", "query get by key -n <table_name> -key <key>", "query get by key -n users -key eb2232436666482cbdcb1b1fb5382217");
+                 */
+                if (args.Contains("-key", StringComparer.OrdinalIgnoreCase))
+                {
+                    var keyIndex = Array.IndexOf(args, "-key");
+                    if (keyIndex + 1 >= args.Length)
+                    {
+                        AnsiConsole.MarkupLine("[red]Invalid key. Use: -key <key_value>[/]");
+                        return;
+                    }
+                    var keyValue = args[keyIndex + 1];
+                    if (!long.TryParse(keyValue, out var keyLong))
+                    {
+                        AnsiConsole.MarkupLine("[red]Invalid key. Use: long or int[/]");
+                        return;
+                    }
+                    var record = await _db.GetRecordByKeyAsync(tableName, keyLong);
+                    if (record == null)
+                    {
+                        AnsiConsole.MarkupLine($"[yellow]No record found with key '{keyValue}'[/]");
+                    }
+                    else
+                    {
+                        QueryRenderer.RenderRecords(tableName, [record]);
+                    }
+                    return;
+                }
+                
                 var resultSet = await _db.ReadAllRecordAsync(tableName);
                 var records = resultSet.Records
                     .Select(r => FilterSystemFields(r, showAll))

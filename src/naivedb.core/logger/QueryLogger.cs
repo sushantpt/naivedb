@@ -43,7 +43,7 @@ namespace naivedb.core.logger
         }
 
         public static async Task GenericLogAsync(string? dbName, string operation, Stopwatch? sw = null,
-            string status = "Success", string? extraInfo = null)
+            string status = "Success", string? extraInfo = null, Exception ex = null)
         {
             try
             {
@@ -57,6 +57,7 @@ namespace naivedb.core.logger
                             Duration  : {(sw?.ElapsedMilliseconds.ToString() ?? "<N/A>")} ms
                             Status    : {status}
                             {(!string.IsNullOrWhiteSpace(extraInfo) ? $"Info    : {extraInfo}" : "")}
+                            {ex?.ToString() ?? ""}
                             """;
                 await File.AppendAllTextAsync(logFile, line + Environment.NewLine + Environment.NewLine);
             }

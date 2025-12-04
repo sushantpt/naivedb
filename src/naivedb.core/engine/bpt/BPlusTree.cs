@@ -24,7 +24,13 @@ namespace naivedb.core.engine.bpt
             _order = order;
             _minKeys = Math.Max(1, order / 2);
             Directory.CreateDirectory(path);
-            _rootNode = new BPlusNode<TKey, TValue>(true); // root is always leaf initially
+            _rootNode = new BPlusNode<TKey, TValue>(true) // root is always leaf initially
+            {
+                Keys = [],
+                Values = [],
+                IsDeleted = [],
+                ChildIds = [],
+            };
         }
         
         # region public apis
@@ -67,104 +73,20 @@ namespace naivedb.core.engine.bpt
             _rootNode = await LoadNodeAsync(rootId);
             return _rootNode;
         }
-        
-        #endregion
 
-        #region b+ tree internals and helpers
-        
-        private async Task<BPlusNode<TKey, TValue>> FindLeafAsync(BPlusNode<TKey, TValue> rootNode, TKey key)
+        public BPlusNode<TKey, TValue>? Load()
         {
-            if(rootNode.IsLeaf || rootNode.ChildIds.Count == 0)
-                return rootNode;
-            int idx = rootNode.Keys.BinarySearch(key); // keys are sorted, so bs returns idx of the key if found, else idx of the next key (so bitwise invert to get the idx of the key before the key to be inserted)
-            if (idx < 0)
-                idx = ~idx;
-            string childId = rootNode.ChildIds[idx];
-            var childNode = await LoadNodeAsync(childId);
-            return await FindLeafAsync(childNode, key);
-        }
-
-        private async Task InsertInLeafAsync(BPlusNode<TKey, TValue> leaf, TKey key, TValue value)
-        {
-            int idx = leaf.Keys.BinarySearch(key); // bs returns idx of the key if found, else idx of the next key (bitwise invert to get the idx of the key before the key to be inserted). 
-            if (idx >= 0)
-            {
-                leaf.Values[idx] = value;
-                leaf.IsDeleted[idx] = false;
-            }
-            else
-            {
-                idx = ~idx; // eg: if idx returned -4 (bs didnt found and returned next negative element), bitwise invert to get 3 i.e. index to insert at
-                leaf.Keys.Insert(idx, key);
-                leaf.Values.Insert(idx, value);
-                leaf.IsDeleted.Insert(idx, false);
-            }
-            leaf.NodeIsDirty = true;
-            
-            if(leaf.IsFull(_order))
-                await SplitLeafAsync(leaf);
-            else
-                await SaveNodeAsync(leaf);
-        }
-
-        private async Task SplitLeafAsync(BPlusNode<TKey, TValue> leaf)
-        {
-            int mid = leaf.Keys.Count / 2;
-            var right = new BPlusNode<TKey, TValue>(true)
-            {
-                Keys = leaf.Keys.Skip(mid).ToList(),
-                Values = leaf.Values.Skip(mid).ToList(),
-                NextNodeId = leaf.NextNodeId,
-            };
-            
-            leaf.Keys = leaf.Keys.Take(mid).ToList();
-            leaf.Values = leaf.Values.Take(mid).ToList();
-            leaf.NextNodeId = right.NodeId;
-            
-            await SaveNodeAsync(leaf);
-            await SaveNodeAsync(right);
-            await InsertIntoParentAsync(leaf, right.Keys.First(), right);
-        }
-
-        private async Task InsertIntoParentAsync(BPlusNode<TKey, TValue> left, TKey key, BPlusNode<TKey, TValue> right)
-        {
-            if (left.Parent == null)
-            {
-                var newRoot = new BPlusNode<TKey, TValue>(false)
-                {
-                    Keys = [key],
-                    ChildIds = [left.NodeId, right.NodeId],
-                };
-                left.Parent = newRoot;
-                right.Parent = newRoot;
-                _rootNode = newRoot;
-                await SaveNodeAsync(_rootNode);
-                return;
-            }
-            
-            var parent = left.Parent;
-            int idx = parent.Keys.BinarySearch(key);
-            if(idx >= 0)
-                idx++;
-            else
-                idx = ~idx; // bs returns idx of the key if found, else idx of the next key. so bitwise invert to get the idx of the key before the key to be inserted
-            parent.Keys.Insert(idx, key);
-            parent.ChildIds.Insert(idx + 1, right.NodeId);
-            right.Parent = parent;
-            if (parent.IsFull(_order))
-            {
-                await SplitParentAsync(parent);
-            }
-            
-            await SaveNodeAsync(parent);
+            string metaPath = Path.Combine(_path, "tree.meta");
+            if (!File.Exists(metaPath))
+                return null;
+            var bytes = File.ReadAllBytes(metaPath);
+            var meta = _serializer.Deserialize<dynamic>(bytes);
+            string rootId = meta!["RootId"];
+            _rootNode = LoadNodeAsync(rootId).GetAwaiter().GetResult();
+            return _rootNode;
         }
         
-        private async Task RebalanceAfterDeleteAsync(BPlusNode<TKey, TValue> leaf)
-        {
-            // todo: merge or redistribute keys if underflow occurs; better if done in the background
-        }
-
-        private async Task DeleteAsync(TKey key)
+        public async Task DeleteAsync(TKey key)
         {
             var leaf = await FindLeafAsync(_rootNode, key);
             int idx = leaf.Keys.BinarySearch(key);
@@ -175,25 +97,228 @@ namespace naivedb.core.engine.bpt
             }
         }
         
-        private async Task SplitParentAsync(BPlusNode<TKey, TValue> node)
+        #endregion
+
+        #region b+ tree internals and helpers
+        
+        private async Task<BPlusNode<TKey, TValue>> FindLeafAsync(BPlusNode<TKey, TValue> node, TKey key)
         {
-            int mid = node.Keys.Count / 2;
-            var right = new BPlusNode<TKey, TValue>(false)
-            {
-                Keys = node.Keys.Skip(mid + 1).ToList(),
-                ChildIds = node.ChildIds.Skip(mid + 1).ToList(),
-            };
-            var upKey = node.Keys[mid];
-            node.Keys = node.Keys.Take(mid + 1).ToList();
-            node.ChildIds = node.ChildIds.Take(mid + 1).ToList();
+            // base case: if at a leaf or have no children, return current node
+            if (node.IsLeaf || node.ChildIds.Count == 0)
+                return node;
+
+            // find appropriate child to traverse to
+            int idx = FindChildIndex(node, key);
             
+            // load child node and continue search
+            var childNode = await LoadNodeAsync(node.ChildIds[idx]);
+            return await FindLeafAsync(childNode, key);
+        }
+
+        private int FindChildIndex(BPlusNode<TKey, TValue> node, TKey key)
+        {
+            // binary search to find the right child index
+            int low = 0;
+            int high = node.Keys.Count - 1;
+            int idx = 0;
+
+            while (low <= high)
+            {
+                int mid = (low + high) / 2;
+                int comparison = key.CompareTo(node.Keys[mid]);
+                
+                if (comparison < 0)
+                {
+                    high = mid - 1;
+                    idx = mid;
+                }
+                else if (comparison > 0)
+                {
+                    low = mid + 1;
+                    idx = mid + 1;
+                }
+                else
+                {
+                    // key matches exactly, go to the right child
+                    idx = mid + 1;
+                    break;
+                }
+            }
+            
+            return Math.Clamp(idx, 0, node.ChildIds.Count - 1);
+        }
+
+        private async Task InsertInLeafAsync(BPlusNode<TKey, TValue> leaf, TKey key, TValue value)
+        {
+            while (leaf.IsDeleted.Count < leaf.Keys.Count)
+                leaf.IsDeleted.Add(false);
+            
+            // find insertion position using binary search
+            int idx = leaf.Keys.BinarySearch(key);
+            if (idx >= 0)
+            {
+                leaf.Values[idx] = value;
+                leaf.IsDeleted[idx] = false;
+            }
+            else
+            {
+                idx = ~idx;
+                idx = Math.Clamp(idx, 0, leaf.Keys.Count);
+                // insert into all three lists at the same position
+                leaf.Keys.Insert(idx, key);
+                leaf.Values.Insert(idx, value);
+                leaf.IsDeleted.Insert(idx, false);
+            }
+            
+            leaf.NodeIsDirty = true;
+            
+            // check if we need to split the leaf
+            if (leaf.Keys.Count > _order)
+            {
+                await SplitLeafAsync(leaf);
+            }
+            else
+            {
+                await SaveNodeAsync(leaf);
+            }
+        }
+
+        private async Task SplitLeafAsync(BPlusNode<TKey, TValue> leaf)
+        {
+            int splitIndex = leaf.Keys.Count / 2;
+            var rightLeaf = new BPlusNode<TKey, TValue>(true)
+            {
+                Keys = new List<TKey>(),
+                Values = new List<TValue>(),
+                IsDeleted = new List<bool>(),
+                NextNodeId = leaf.NextNodeId
+            };
+
+            // move half the entries to the right leaf
+            for (int i = splitIndex; i < leaf.Keys.Count; i++)
+            {
+                rightLeaf.Keys.Add(leaf.Keys[i]);
+                rightLeaf.Values.Add(leaf.Values[i]);
+                rightLeaf.IsDeleted.Add(leaf.IsDeleted[i]);
+            }
+
+            // remove moved entries from original leaf
+            leaf.Keys.RemoveRange(splitIndex, leaf.Keys.Count - splitIndex);
+            leaf.Values.RemoveRange(splitIndex, leaf.Values.Count - splitIndex);
+            leaf.IsDeleted.RemoveRange(splitIndex, leaf.IsDeleted.Count - splitIndex);
+            
+            // update leaf pointers
+            leaf.NextNodeId = rightLeaf.NodeId;
+
+            // save both nodes
+            await SaveNodeAsync(leaf);
+            await SaveNodeAsync(rightLeaf);
+
+            // promote the first key of right leaf to parent
+            if (rightLeaf.Keys.Count > 0)
+            {
+                await InsertIntoParentAsync(leaf, rightLeaf.Keys[0], rightLeaf);
+            }
+        }
+
+        private async Task InsertIntoParentAsync(BPlusNode<TKey, TValue> leftChild, TKey key, BPlusNode<TKey, TValue> rightChild)
+        {
+            var parent = leftChild.Parent;
+
+            if (parent == null)
+            {
+                await CreateNewRoot(leftChild, key, rightChild);
+                return;
+            }
+
+            // get insertion position in parent
+            int idx = parent.Keys.BinarySearch(key);
+            if (idx < 0) 
+                idx = ~idx;
+            
+            idx = Math.Clamp(idx, 0, parent.Keys.Count);
+            parent.Keys.Insert(idx, key);
+            
+            // find position for child reference (always idx + 1 for right child)
+            int childIdx = idx + 1;
+            childIdx = Math.Clamp(childIdx, 0, parent.ChildIds.Count);
+            parent.ChildIds.Insert(childIdx, rightChild.NodeId);
+            
+            rightChild.Parent = parent;
+
+            // check if parent needs splitting
+            if (parent.Keys.Count > _order)
+            {
+                await SplitInternalNodeAsync(parent);
+            }
+            else
+            {
+                await SaveNodeAsync(parent);
+            }
+        }
+
+        private async Task CreateNewRoot(BPlusNode<TKey, TValue> leftChild, TKey key, BPlusNode<TKey, TValue> rightChild)
+        {
+            var newRoot = new BPlusNode<TKey, TValue>(false)
+            {
+                Keys = [key],
+                ChildIds = [leftChild.NodeId, rightChild.NodeId]
+            };
+
+            leftChild.Parent = newRoot;
+            rightChild.Parent = newRoot;
+            _rootNode = newRoot;
+            await SaveNodeAsync(_rootNode);
+        }
+
+        private async Task SplitInternalNodeAsync(BPlusNode<TKey, TValue> node)
+        {
+            int splitIndex = node.Keys.Count / 2;
+            TKey promoteKey = node.Keys[splitIndex];
+            
+            var rightNode = new BPlusNode<TKey, TValue>(false)
+            {
+                Keys = new List<TKey>(),
+                ChildIds = new List<string>()
+            };
+
+            // move keys and children to right node (skip the promoted key)
+            for (int i = splitIndex + 1; i < node.Keys.Count; i++)
+            {
+                rightNode.Keys.Add(node.Keys[i]);
+            }
+            for (int i = splitIndex + 1; i < node.ChildIds.Count; i++)
+            {
+                rightNode.ChildIds.Add(node.ChildIds[i]);
+            }
+
+            // remove moved entries from original node
+            node.Keys.RemoveRange(splitIndex, node.Keys.Count - splitIndex);
+            node.ChildIds.RemoveRange(splitIndex + 1, node.ChildIds.Count - (splitIndex + 1));
+
+            // save both nodes
             await SaveNodeAsync(node);
-            await SaveNodeAsync(right);
-            await InsertIntoParentAsync(node, upKey, right);
+            await SaveNodeAsync(rightNode);
+
+            // promote middle key to parent
+            await InsertIntoParentAsync(node, promoteKey, rightNode);
+        }
+        
+        private async Task RebalanceAfterDeleteAsync(BPlusNode<TKey, TValue> leaf)
+        {
+            // todo: merge or redistribute keys if underflow occurs; better if done in the background
+            throw new NotImplementedException();
         }
         
         private async Task SaveNodeAsync(BPlusNode<TKey, TValue> node)
         {
+            if (node.IsLeaf)
+            {
+                while (node.IsDeleted.Count < node.Keys.Count)
+                    node.IsDeleted.Add(false);
+                if (node.IsDeleted.Count > node.Keys.Count)
+                    node.IsDeleted = node.IsDeleted.Take(node.Keys.Count).ToList();
+            }
             string nodePath = Path.Combine(_path, $"node_{node.NodeId}.dbp");
             string tmpPath = nodePath + ".tmp";
             
@@ -239,7 +364,56 @@ namespace naivedb.core.engine.bpt
             var computedChecksum = ChecksumUtils.ComputeCrc32C(dataBytes);
             if (nodePage.Footer.Checksum != computedChecksum)
                 throw new IOException($"Checksum mismatch for node {nodeId}!");
+            var node = nodePage.Node;
+            if (node.IsLeaf)
+            {
+                while (node.IsDeleted.Count < node.Keys.Count)
+                    node.IsDeleted.Add(false);
+                if (node.IsDeleted.Count > node.Keys.Count)
+                    node.IsDeleted = node.IsDeleted.Take(node.Keys.Count).ToList();
+            }
             return nodePage.Node;
+        }
+
+        public async IAsyncEnumerable<object> TraverseRangeAsync(long startKey, long endKey)
+        {
+            var startTKey = (TKey)Convert.ChangeType(startKey, typeof(TKey));
+            var endTKey = (TKey)Convert.ChangeType(endKey, typeof(TKey));
+            if (startTKey.CompareTo(endTKey) == 0)
+            {
+                var val = await GetAsync(startTKey);
+                if (val != null)
+                    yield return val!;
+                yield break;
+            }
+
+            if (startTKey.CompareTo(endTKey) > 0)
+            {
+                startTKey = (TKey)Convert.ChangeType(startKey, typeof(TKey));
+                endTKey = (TKey)Convert.ChangeType(endKey, typeof(TKey));
+            }
+
+            var leaf = await FindLeafAsync(_rootNode, startTKey);
+            while (leaf != null)
+            {
+                for (int i = 0; i < leaf.Keys.Count; i++)
+                {
+                    var currentKey = leaf.Keys[i];
+                    if (currentKey.CompareTo(startTKey) >= 0 && currentKey.CompareTo(endTKey) <= 0 && !leaf.IsDeleted[i])
+                    {
+                        yield return leaf.Values[i]!;
+                    }
+                    else if (currentKey.CompareTo(endTKey) > 0)
+                    {
+                        yield break;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(leaf.NextNodeId))
+                    yield break;
+
+                leaf = await LoadNodeAsync(leaf.NextNodeId);
+            }
         }
 
         #endregion

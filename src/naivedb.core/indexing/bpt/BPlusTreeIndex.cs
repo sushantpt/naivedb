@@ -4,6 +4,9 @@ using naivedb.core.storage;
 
 namespace naivedb.core.indexing.bpt
 {
+    /// <summary>
+    /// use for building secondary indexes using b+ tree
+    /// </summary>
     public class BPlusTreeIndex<TKey> : IIndex where TKey : IComparable<TKey>
     {
         private readonly string _name;

@@ -10,17 +10,26 @@ namespace naivedb.core.engine
         private readonly string _databaseDirectory;
         private readonly Dictionary<string, PagedFileStorageUsingBPT> _tables = [];
         private readonly DbOptions _options;
-        private readonly IDataSerializer _serializer = new MessagePackDataSerializer();
+        private readonly MessagePackDataSerializer _serializer = new();
 
-        public Database(string databaseDirectory, DbOptions options)
+        public Database(string? databaseDirectory = null, DbOptions? options = null!)
         {
-            _databaseDirectory = databaseDirectory;
+            options ??= new DbOptions();
             _options = options;
+            _databaseDirectory = string.IsNullOrEmpty(databaseDirectory) ? _options.DataPath : Path.Combine(_options.DataPath, databaseDirectory); 
             Directory.CreateDirectory(_databaseDirectory);
         }
 
         public async Task CreateRecordAsync(string tableName, Row row)
         {
+            /*
+             * creating a new record:
+             *  - check if table exists, if not create table
+             *  - append to table
+             *      - save to disk in row format
+             *      - create index based on key i.e _id_ and build bpt
+             *      - update in-mem index
+             */
             var storage = GetTableStorage(tableName);
             await storage.AppendAsync(row);
         }
@@ -38,19 +47,10 @@ namespace naivedb.core.engine
             await storage.SaveAllAsync(records, "update");
         }
 
-        public async Task DeleteRecordAsync(string tableName, string key)
+        public async Task DeleteRecordAsync(string tableName, long key)
         {
             var storage = GetTableStorage(tableName);
-            var records = new List<Row>();
-            await foreach (var record in storage.ReadAllAsync())
-                records.Add(record);
-
-            var index = records.FindIndex(r => r.Key == key);
-            if (index == -1)
-                throw new Exception($"Record with key {key} not found.");
-
-            records.RemoveAt(index);
-            await storage.SaveAllAsync(records, lastOperation: "delete");
+            await storage.DeleteAsync(key);
         }
 
         public async Task<ResultSet> ReadAllRecordAsync(string tableName)
@@ -71,7 +71,6 @@ namespace naivedb.core.engine
         private PagedFileStorageUsingBPT GetTableStorage(string table)
         {
             if (!_tables.ContainsKey(table))
-                //_tables[table] = new JsonFileStorage(_dataDirectory, table);
                 _tables[table] = new PagedFileStorageUsingBPT(_databaseDirectory, table, _options);
             return _tables[table];
         }
@@ -123,14 +122,16 @@ namespace naivedb.core.engine
             return true;
         }
 
-        public List<string?> ListDatabasesAsync()
+        public List<(string? name, string? date)> ListDatabasesAsync()
         {
-            var dbs = Directory.GetDirectories(_options.DataPath)
-                .Select(Path.GetFileName)
+            var data = Directory.GetDirectories(_options.DataPath)
+                .Select(x => (
+                    name: Path.GetFileName(x),
+                    date: Directory.GetCreationTimeUtc(x).ToString("g")))
                 .ToList();
-            return dbs;
+            return data!;
         }
-        
+
         public async Task<string?> GetCurrentDatabase()
         {
             var dbInfoFilePath = Path.Combine(GetDatabasePath(""), _options.DbInfoFile);
@@ -141,6 +142,12 @@ namespace naivedb.core.engine
                 return dbInfo?.CurrentDatabase;
             }
             return null;
+        }
+        
+        public async Task<Row?> GetRecordByKeyAsync(string tableName, long key)
+        {
+            var storage = GetTableStorage(tableName);
+            return await storage.GetAsync(key);
         }
     }
 }

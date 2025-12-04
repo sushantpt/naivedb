@@ -13,6 +13,7 @@ namespace naivedb.core.storage
         IAsyncEnumerable<Row> ReadAllAsync();
         Task SaveAllAsync(List<Row> records, string lastOperation = "update");
         Task<PageHeader> GetMetadataAsync();
-        Task<Row?> GetAsync(string key);
+        Task<Row?> GetAsync(long key);
+        Task DeleteAsync(long key);
     }
 }

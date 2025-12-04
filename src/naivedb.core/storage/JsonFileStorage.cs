@@ -78,7 +78,7 @@ namespace naivedb.core.storage
             return page.Header;
         }
 
-        public Task<Row?> GetAsync(string key)
+        public Task<Row?> GetAsync(long key)
         {
             throw new NotImplementedException();
         }
@@ -134,6 +134,11 @@ namespace naivedb.core.storage
             using var sha = SHA256.Create();
             var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(data));
             return BitConverter.ToString(hash).Replace("-", "").Substring(0, 16);
+        }
+
+        public Task DeleteAsync(long key)
+        {
+            throw new NotImplementedException();
         }
     }
 }

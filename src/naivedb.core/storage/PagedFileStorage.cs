@@ -30,7 +30,7 @@ namespace naivedb.core.storage
                 await WriteRowAsync(row, "bulk-insert");
         }
 
-        public Task<Row?> GetAsync(string key)
+        public Task<Row?> GetAsync(long key)
         {
             throw new NotImplementedException();
         }
@@ -199,6 +199,11 @@ namespace naivedb.core.storage
 
             var path = Path.Combine(_tableDirectory, $"page_{page.Header.PageNumber:D16}.dbp");
             await File.WriteAllBytesAsync(path, finalBytes);
+        }
+
+        public Task DeleteAsync(long key)
+        {
+            throw new NotImplementedException();
         }
     }
 }

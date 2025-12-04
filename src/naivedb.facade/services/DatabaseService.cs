@@ -98,7 +98,7 @@ namespace naivedb.facade.services
             }
         }
 
-        public List<string?> ListDatabasesAsync()
+        public List<(string? name, string? date)> ListDatabasesAsync()
         {
             if (!_isInit) throw new InvalidOperationException("DatabaseService not initialized.");
             return _db.ListDatabasesAsync();

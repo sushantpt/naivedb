@@ -1,3 +1,5 @@
+using NaiveDB.Core.Utils;
+
 namespace naivedb.core.configs
 {
     /// <summary>
@@ -13,7 +15,7 @@ namespace naivedb.core.configs
         /// <summary>
         /// Path to the directory where the database stores its data.
         /// </summary>
-        public string DataPath { get; set; } = Path.Combine("naivedb", "data");
+        public string DataPath { get; set; }
 
         /// <summary>
         /// Size of a database page in bytes.
@@ -34,5 +36,12 @@ namespace naivedb.core.configs
         /// required information for cold start and initialization.
         /// </summary>
         public string DbInfoFile { get; } = "naivedbinfo.msgpack";
+
+        public string GetDbInfoFilePath() => Path.Combine(DataPath, DbInfoFile);
+        
+        public DbOptions()
+        {
+            DataPath = DbPathHelper.GetDefaultDbPath();
+        }
     }
 }

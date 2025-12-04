@@ -3,6 +3,7 @@ using System.Text;
 using naivedb.cli.query.commands;
 using naivedb.core.configs;
 using naivedb.core.logger;
+using naivedb.facade.services;
 using Spectre.Console;
 
 namespace naivedb.cli
@@ -17,10 +18,14 @@ namespace naivedb.cli
             try
             {
                 /*
+                 * 0. cold start
                  * 1. initialize with options
                  * 2. process command and show responses
                  * 3. run repl
                  */
+                var coldStart = new ColdStartService(DbOption);
+                coldStart.StartColdStartBackground();
+                
                 if (args.Length > 0)
                 {
                     QueryLogger.InitializeWithDbOption(DbOption);
@@ -96,7 +101,8 @@ namespace naivedb.cli
             sw.Stop();
             double ns = sw.ElapsedTicks * (1_000_000_000.0 / Stopwatch.Frequency);
             double ms = sw.Elapsed.TotalMilliseconds;
-            AnsiConsole.MarkupLine($"[grey]Query completed in {ms:F3} ms ({ns:F0} ns)[/]");
+            double seconds = ms / 1000;
+            AnsiConsole.MarkupLine($"[grey]Query completed in {ms:F3} ms ({ns:F0} ns, {seconds:F6} s)[/]");
         }
 
         /// <summary>

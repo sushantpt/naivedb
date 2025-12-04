@@ -10,10 +10,21 @@ namespace naivedb.core.storage.pages
             
         }
 
-        public string? Key
+        /// <summary>
+        /// key == _id_
+        /// </summary>
+        public long Key
         {
-            get => this.TryGetValue("key", out var value) ? value?.ToString() : null;
-            set => this["key"] = value;
+            get
+            {
+                if (TryGetValue("_id_", out var value) && value != null)
+                {
+                    if (value is long l) return l;
+                    if (long.TryParse(value.ToString(), out var parsed)) return parsed;
+                }
+                return 0;
+            }
+            set => this["_id_"] = value;
         }
         
         /// <summary>

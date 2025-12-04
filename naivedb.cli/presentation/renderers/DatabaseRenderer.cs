@@ -4,9 +4,9 @@ namespace naivedb.cli.presentation.renderers
 {
     public class DatabaseRenderer
     {
-        public static void RenderList(List<string?> dbs)
+        public static void RenderList(List<(string? name, string? date)> dbs)
         {
-            if (dbs.Any(x => x == null) || dbs.Count == 0)
+            if (dbs.Any(x => x.name == null || x.date == null) || dbs.Count == 0)
             {
                 AnsiConsole.MarkupLine("[yellow]No databases found.[/]");
                 return;
@@ -18,7 +18,7 @@ namespace naivedb.cli.presentation.renderers
 
             foreach (var db in dbs)
             {
-                table.AddRow(db, Directory.GetCreationTime(db).ToString("g"));
+                table.AddRow(db.name!, db.date!);
             }
 
             AnsiConsole.Write(table);
