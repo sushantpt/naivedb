@@ -112,5 +112,6 @@ there is basically 3 layers here:
 * table-level data management -> bpt used for cold start and index mirror
 * indexing -> caching which is volatile
 
+* tui support (gui -> Terminal.Gui)
 
 
